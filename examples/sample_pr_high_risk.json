@@ -1,0 +1,8 @@
+{
+  "files": [
+    {"path": "payments/checkout.py", "additions": 220, "deletions": 40},
+    {"path": "migrations/0042_add_invoice_table.sql", "additions": 80, "deletions": 0},
+    {"path": "docker-compose.yml", "additions": 6, "deletions": 2}
+  ],
+  "deploy_time": "2026-07-24T17:30:00"
+}

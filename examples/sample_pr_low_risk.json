@@ -1,0 +1,7 @@
+{
+  "files": [
+    {"path": "docs/setup.md", "additions": 18, "deletions": 3},
+    {"path": "tests/test_utils.py", "additions": 22, "deletions": 0},
+    {"path": "utils/format.py", "additions": 9, "deletions": 4}
+  ]
+}
