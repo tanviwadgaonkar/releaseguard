@@ -33,3 +33,7 @@ def test_analyze_high_risk_has_explanations():
 def test_validation_error_on_bad_payload():
     resp = client.post("/analyze", json={"files": [{"path": "a.py", "additions": -5}]})
     assert resp.status_code == 422
+
+
+def test_empty_file_list_is_rejected():
+    assert client.post("/analyze", json={"files": []}).status_code == 422

@@ -4,18 +4,8 @@ Each factor is a small, auditable rule that returns whether it triggered,
 how many points it adds, and human-readable evidence. The final score is the
 capped sum - so every point in the score can be traced to a reason.
 """
-import re
-from datetime import datetime
-
+from app.classify import DEFAULT_CRITICAL, is_critical, is_infra, is_migration, is_source, is_test
 from app.models import AnalyzeRequest, Factor, FileChange, RiskReport
-
-DEFAULT_CRITICAL = ("auth", "payment", "billing", "security", "core")
-MIGRATION_RE = re.compile(r"(^|/)(migrations?|alembic)(/|$)|\.sql$", re.I)
-INFRA_RE = re.compile(
-    r"(^|/)(dockerfile|docker-compose[^/]*|\.env[^/]*|[^/]*\.ya?ml|terraform/|helm/|k8s/)",
-    re.I,
-)
-TEST_RE = re.compile(r"(^|/)tests?(/|_)|_test\.py$|\.test\.[jt]s$", re.I)
 
 LEVELS = ((60, "HIGH"), (30, "MEDIUM"), (0, "LOW"))
 RECOMMENDATIONS = {
@@ -44,12 +34,11 @@ def score_release(req: AnalyzeRequest) -> RiskReport:
     total = additions + deletions
     critical_prefixes = tuple(req.critical_paths) if req.critical_paths else DEFAULT_CRITICAL
 
-    src_files = [f for f in files if not TEST_RE.search(f.path)]
-    test_files = [f for f in files if TEST_RE.search(f.path)]
-    migration_hits = [p for p in paths if MIGRATION_RE.search(p)]
-    infra_hits = [p for p in paths if INFRA_RE.search(p)]
-    critical_hits = [p for p in paths
-                     if any(seg in p.lower() for seg in critical_prefixes)]
+    src_files = [f for f in files if is_source(f.path)]
+    test_files = [f for f in files if is_test(f.path)]
+    migration_hits = [p for p in paths if is_migration(p)]
+    infra_hits = [p for p in paths if is_infra(p)]
+    critical_hits = [p for p in paths if is_critical(p, critical_prefixes)]
 
     factors = [
         _factor("diff_size", "Large diff", total > 150,
@@ -66,7 +55,7 @@ def score_release(req: AnalyzeRequest) -> RiskReport:
                 _fmt(infra_hits) or "no infra files touched"),
         _factor("tests_missing", "Source changed without tests",
                 bool(src_files) and not test_files, 15,
-                f"{len(src_files)} source files changed, {len(test_files)} test files updated"),
+                f"{len(src_files)} source code files changed, {len(test_files)} test files updated"),
         _factor("deletion_heavy", "Deletion-heavy change",
                 deletions > 100 and deletions > 2 * max(additions, 1), 10,
                 f"{deletions} deletions vs {additions} additions"),
@@ -87,8 +76,15 @@ def score_release(req: AnalyzeRequest) -> RiskReport:
 
 
 def from_github_files(gh_files: list[dict]) -> list[FileChange]:
-    """Convert the GitHub API `GET /pulls/{n}/files` payload to FileChange list."""
-    return [FileChange(path=f["filename"],
-                       additions=f.get("additions", 0),
-                       deletions=f.get("deletions", 0))
-            for f in gh_files]
+    """Convert the GitHub API `GET /pulls/{n}/files` payload to FileChange list.
+
+    A renamed file is scored under both names: moving ``auth/x.py`` out of
+    ``auth/`` still touches the critical area.
+    """
+    out = []
+    for f in gh_files:
+        out.append(FileChange(path=f["filename"], additions=f.get("additions", 0),
+                              deletions=f.get("deletions", 0)))
+        if f.get("status") == "renamed" and f.get("previous_filename"):
+            out.append(FileChange(path=f["previous_filename"]))
+    return out

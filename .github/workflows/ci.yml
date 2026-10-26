@@ -1,12 +1,36 @@
 name: CI
 
-on:
-  push:
-    branches: [main]
-  pull_request:
+on: [push, pull_request]
 
 jobs:
   test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t releaseguard .
+      - run: |
+          docker run -d -p 8000:8000 --name rg releaseguard
+          for i in $(seq 1 20); do curl -fs localhost:8000/health && break; sleep 1; done
+          curl -fs -X POST localhost:8000/analyze -H "Content-Type: application/json" \
+            -d @examples/sample_pr_high_risk.json | grep -q '"level":"HIGH"'
+
+  self-review:
+    # ReleaseGuard scores its own pull requests and posts the report to the job summary.
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,4 +38,6 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - run: python -m pytest -q
+      - run: python -m app.cli --markdown github "${{ github.repository }}" "${{ github.event.pull_request.number }}" >> "$GITHUB_STEP_SUMMARY" || [ $? -eq 2 ]
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
