@@ -94,7 +94,7 @@ Every factor depends on recognising what a path *is*, so `app/classify.py` is te
 
 ```bash
 pip install -r requirements-dev.txt
-python -m pytest -q          # 46 tests
+python -m pytest -q          # 45 tests
 
 docker build -t releaseguard .
 docker run -p 8000:8000 releaseguard
