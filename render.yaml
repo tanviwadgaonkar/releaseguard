@@ -1,0 +1,7 @@
+# Render Blueprint: free Docker web service. /health is the health check.
+services:
+  - type: web
+    name: releaseguard
+    runtime: docker
+    plan: free
+    healthCheckPath: /health

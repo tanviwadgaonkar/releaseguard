@@ -16,6 +16,10 @@ POST /analyze ────────┘   (test / source /        │
                            critical)
 ```
 
+![ReleaseGuard API: scoring the high-risk example in the interactive docs](docs/screenshot-api.png)
+
+*`POST /analyze` with `examples/sample_pr_high_risk.json`, run locally through the interactive docs at `/docs`. Every point in the 80/100 score maps to a factor with its evidence.*
+
 ## Why explainable?
 
 A single opaque number can't gate a release. Every ReleaseGuard factor
@@ -99,6 +103,17 @@ python -m pytest -q          # 45 tests
 docker build -t releaseguard .
 docker run -p 8000:8000 releaseguard
 ```
+
+## Deployment
+
+The Docker image listens on `$PORT` (default 8000) and has a `/health` healthcheck. `render.yaml` is a Render Blueprint for the free tier: in Render, choose **New → Blueprint** and select this repo. CI builds the image and smoke-tests `/health` and `/analyze` on every push. There's no public demo yet.
+
+## Known limitations
+
+- The factor weights and thresholds are hand-chosen, not learned from incident data; the score ranks changes for review and isn't a probability of failure.
+- File classification is by path and extension; it doesn't read diffs, so a risky one-line config change scores like a harmless one.
+- "Friday deploy window" uses the timestamp as given, with no timezone or holiday calendar.
+- The CLI writes the report to stdout and the CI job summary; it doesn't comment on the PR yet.
 
 ## Roadmap
 
