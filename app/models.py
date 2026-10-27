@@ -18,6 +18,7 @@ class AnalyzeRequest(BaseModel):
     deploy_time: datetime | None = None
     critical_paths: list[str] | None = Field(
         default=None,
+        max_length=100,
         description="Critical areas (override the defaults): a name such as 'auth' matches "
                     "that directory or file stem anywhere; an entry with '/' is a path prefix.",
     )
