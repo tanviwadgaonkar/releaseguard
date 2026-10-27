@@ -68,7 +68,7 @@ python -m app.cli --markdown github pallets/flask 6168
 | ⚠️ | Deletion-heavy change   | 10 | 433 deletions vs 67 additions |
 ```
 
-The CLI pages through GitHub's PR-files API (up to its 3,000-file limit), scores renamed files under both their old and new paths, and exits with code 2 on HIGH so it can gate a pipeline. `GITHUB_TOKEN` is optional for public repos. This repo's own CI runs it on every pull request and writes the report to the job summary.
+The CLI pages through GitHub's PR-files API (up to its 3,000-file limit), scores renamed files under both their old and new paths (counted once for the size factors), and exits with code 2 on HIGH so it can gate a pipeline. `GITHUB_TOKEN` is optional for public repos. This repo's own CI runs it on every pull request and writes the report to the job summary.
 
 ## Risk factors
 
@@ -98,7 +98,7 @@ Every factor depends on recognising what a path *is*, so `app/classify.py` is te
 
 ```bash
 pip install -r requirements-dev.txt
-python -m pytest -q          # 45 tests
+python -m pytest -q          # 46 tests
 
 docker build -t releaseguard .
 docker run -p 8000:8000 releaseguard

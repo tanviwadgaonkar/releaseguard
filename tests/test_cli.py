@@ -3,7 +3,8 @@ import json
 from pathlib import Path
 
 from app import cli
-from app.scoring import from_github_files
+from app.models import AnalyzeRequest
+from app.scoring import from_github_files, score_release
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 
@@ -46,7 +47,16 @@ def test_fetch_pr_files_paginates_and_sends_token():
 def test_renamed_file_is_scored_under_both_names():
     files = from_github_files([{"filename": "lib/login.py", "previous_filename": "auth/login.py",
                                 "status": "renamed", "additions": 0, "deletions": 0}])
-    assert [f.path for f in files] == ["lib/login.py", "auth/login.py"]
+    assert [(f.path, f.previous_path) for f in files] == [("lib/login.py", "auth/login.py")]
+    report = score_release(AnalyzeRequest(files=files))
+    assert next(f for f in report.factors if f.name == "critical_path").triggered
+
+
+def test_renames_count_once_for_file_count():
+    # 5 pure renames are 5 files, below the "many files" threshold of 8 (was counted as 10).
+    gh = [{"filename": f"new/m{i}.md", "previous_filename": f"old/m{i}.md", "status": "renamed"} for i in range(5)]
+    report = score_release(AnalyzeRequest(files=from_github_files(gh)))
+    assert not next(f for f in report.factors if f.name == "file_count").triggered
 
 
 def test_github_http_error_is_reported_not_raised(monkeypatch, capsys):

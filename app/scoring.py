@@ -28,7 +28,9 @@ def _factor(name, label, triggered, points, detail) -> Factor:
 
 def score_release(req: AnalyzeRequest) -> RiskReport:
     files: list[FileChange] = req.files
-    paths = [f.path for f in files]
+    # A rename touches both locations (moving auth/x.py out of auth/ is still
+    # a critical-area change), but it is one file for the size factors.
+    paths = [f.path for f in files] + [f.previous_path for f in files if f.previous_path]
     additions = sum(f.additions for f in files)
     deletions = sum(f.deletions for f in files)
     total = additions + deletions
@@ -78,13 +80,9 @@ def score_release(req: AnalyzeRequest) -> RiskReport:
 def from_github_files(gh_files: list[dict]) -> list[FileChange]:
     """Convert the GitHub API `GET /pulls/{n}/files` payload to FileChange list.
 
-    A renamed file is scored under both names: moving ``auth/x.py`` out of
-    ``auth/`` still touches the critical area.
+    A renamed file keeps its old name in ``previous_path``, so it is scored
+    under both names but counted once.
     """
-    out = []
-    for f in gh_files:
-        out.append(FileChange(path=f["filename"], additions=f.get("additions", 0),
-                              deletions=f.get("deletions", 0)))
-        if f.get("status") == "renamed" and f.get("previous_filename"):
-            out.append(FileChange(path=f["previous_filename"]))
-    return out
+    return [FileChange(path=f["filename"], additions=f.get("additions", 0), deletions=f.get("deletions", 0),
+                       previous_path=f.get("previous_filename") if f.get("status") == "renamed" else None)
+            for f in gh_files]

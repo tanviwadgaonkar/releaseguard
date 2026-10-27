@@ -8,6 +8,8 @@ class FileChange(BaseModel):
     path: str = Field(min_length=1, max_length=1000)
     additions: int = Field(ge=0, default=0)
     deletions: int = Field(ge=0, default=0)
+    previous_path: str | None = Field(default=None, max_length=1000,
+                                      description="Old path if the file was renamed; scored as touched too.")
 
 
 class AnalyzeRequest(BaseModel):
