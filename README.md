@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/tanviwadgaonkar/releaseguard/actions/workflows/ci.yml/badge.svg)](https://github.com/tanviwadgaonkar/releaseguard/actions/workflows/ci.yml)
 
+**Status:** implemented and tested (46 tests). The CLI scores real GitHub pull requests. The risk weights are hand-set and have **not** been validated against real incident data. The Docker image is built and smoke-tested in CI. Not deployed.
+
 **Explainable deployment-risk scoring.** Give ReleaseGuard the files changed
 in a release (or a GitHub PR), and it returns a 0–100 risk score where **every
 point is traced to an auditable factor** — changed-code size, database
