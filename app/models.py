@@ -1,13 +1,17 @@
 """Pydantic models for ReleaseGuard's API contract."""
 from datetime import datetime
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
 
+MAX_LINES = 10_000_000  # far beyond any real change; keeps the sums small and bounded
+
+
 class FileChange(BaseModel):
     path: str = Field(min_length=1, max_length=1000)
-    additions: int = Field(ge=0, default=0)
-    deletions: int = Field(ge=0, default=0)
+    additions: int = Field(ge=0, le=MAX_LINES, default=0)
+    deletions: int = Field(ge=0, le=MAX_LINES, default=0)
     previous_path: str | None = Field(default=None, max_length=1000,
                                       description="Old path if the file was renamed; scored as touched too.")
 
@@ -16,7 +20,7 @@ class AnalyzeRequest(BaseModel):
     """One candidate deployment / pull request."""
     files: list[FileChange] = Field(min_length=1, max_length=10_000)
     deploy_time: datetime | None = None
-    critical_paths: list[str] | None = Field(
+    critical_paths: list[Annotated[str, Field(max_length=200)]] | None = Field(
         default=None,
         max_length=100,
         description="Critical areas (override the defaults): a name such as 'auth' matches "
