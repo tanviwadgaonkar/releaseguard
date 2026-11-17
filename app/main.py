@@ -4,6 +4,8 @@ Run:  uvicorn app.main:app --reload      (docs at http://localhost:8000/docs)
 """
 from fastapi import Depends, FastAPI
 
+from app.agent import AgentService
+from app.agent_api import router as agent_router
 from app.errors import install_error_handlers
 from app.models import AnalyzeRequest, RiskReport
 from app.observability import ANALYSES, install_observability
@@ -18,6 +20,8 @@ app = FastAPI(
 )
 install_error_handlers(app)
 install_observability(app)
+app.state.agent_service = AgentService()
+app.include_router(agent_router)
 
 
 @app.get("/health")

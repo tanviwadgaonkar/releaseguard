@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/tanviwadgaonkar/releaseguard/actions/workflows/ci.yml/badge.svg)](https://github.com/tanviwadgaonkar/releaseguard/actions/workflows/ci.yml)
 
-**Status:** implemented and tested (71 tests). The CLI scores real GitHub pull requests. The risk weights are hand-set and have **not** been validated against real incident data. The Docker image is built and smoke-tested in CI. Not deployed.
+**Status:** implemented and tested (92 tests). The CLI scores real GitHub pull requests. The risk weights are hand-set and have **not** been validated against real incident data. The Docker image is built and smoke-tested in CI. Not deployed.
 
 **Explainable deployment-risk scoring.** Give ReleaseGuard the files changed
 in a release (or a GitHub PR), and it returns a 0–100 risk score where **every
@@ -87,6 +87,29 @@ curl -X POST localhost:8000/analyze -H "X-API-Key: change-me" \
 curl localhost:8000/metrics
 ```
 
+## Release-gate agent (human approval)
+
+`POST /agent/runs` scores a change and has a small LangGraph agent propose one action. A LOW-risk change goes ahead and is logged. A MEDIUM or HIGH one **pauses** until a person decides, and nothing is executed before that decision.
+
+```text
+assess -> propose -(LOW)-> execute
+             \-(MEDIUM/HIGH)-> approval_gate (pauses) -> record_decision -(yes)-> execute
+                                                              \-(no)-> reject
+```
+
+```bash
+curl -X POST localhost:8000/agent/runs -H "Content-Type: application/json" \
+  -d @examples/sample_pr_high_risk.json          # -> status "awaiting_approval", proposed action
+curl -X POST localhost:8000/agent/runs/<run_id>/decision -H "Content-Type: application/json" \
+  -d '{"approve": false, "reviewer": "priya", "reason": "no rollback plan"}'
+curl localhost:8000/agent/runs/<run_id>          # state plus the audit trail for the run
+```
+
+- **The proposal is a fixed policy**, not a language model: LOW marks the release ready, MEDIUM adds an extra reviewer, HIGH blocks auto-release and requests senior sign-off. These change the release pipeline, so only the harmless one runs on its own. A fixed policy keeps the agent predictable and testable.
+- **A run is decided once.** A second decision, or a decision on a LOW run, returns 409. Simultaneous decisions are serialised so the action cannot run twice. Decisions are validated (reviewer required, lengths capped) before the run resumes.
+- **Audit log.** Every step (`run_started`, `action_proposed`, `decision_recorded`, `action_executed` or `action_skipped`) is recorded with a timestamp, run ID and reviewer. Set `RELEASEGUARD_AUDIT_LOG=/path/audit.jsonl` to also append each event to a JSON-lines file.
+- **Limits.** At most 1,000 runs may wait for a decision (`RELEASEGUARD_MAX_PENDING_RUNS`), then new runs get 429. The `releaseguard_agent_decisions_total` metric counts approvals, rejections and auto-approvals.
+
 ## Risk factors
 
 | Factor | Points | Triggered when |
@@ -115,7 +138,7 @@ Every factor depends on recognising what a path *is*, so `app/classify.py` is te
 
 ```bash
 pip install -r requirements-dev.txt
-python -m pytest -q          # 71 tests
+python -m pytest -q          # 92 tests
 
 docker build -t releaseguard .
 docker run -p 8000:8000 releaseguard
@@ -127,10 +150,11 @@ The Docker image listens on `$PORT` (default 8000) and has a `/health` healthche
 
 ## Known limitations
 
-- Auth is one shared API key: no per-user keys, key rotation or rate limiting. `/metrics` is unauthenticated, so in production keep it behind the platform's network controls.
+- Auth is one shared API key: no per-user keys, key rotation or rate limiting. For the same reason the agent's `reviewer` is a name the caller types, not a verified identity, and nothing stops the person who started a run from approving it. `/metrics` is unauthenticated, so in production keep it behind the platform's network controls.
 - The factor weights and thresholds are hand-chosen, not learned from incident data; the score ranks changes for review and isn't a probability of failure.
 - File classification is by path and extension; it doesn't read diffs, so a risky one-line config change scores like a harmless one.
 - "Friday deploy window" uses the timestamp as given, with no timezone or holiday calendar.
+- The agent's executor is simulated: it records what would have been done and calls no external system. Runs are held in memory and are lost on restart (the audit log file is not), so it runs on one process only.
 - The CLI writes the report to stdout and the CI job summary; it doesn't comment on the PR yet.
 
 ## Roadmap

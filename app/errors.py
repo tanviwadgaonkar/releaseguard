@@ -24,7 +24,9 @@ _CODES = {
     401: "unauthorized",
     404: "not_found",
     405: "method_not_allowed",
+    409: "conflict",
     413: "payload_too_large",
+    429: "too_many_requests",
     422: "validation_error",
 }
 
