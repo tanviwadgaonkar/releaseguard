@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/tanviwadgaonkar/releaseguard/actions/workflows/ci.yml/badge.svg)](https://github.com/tanviwadgaonkar/releaseguard/actions/workflows/ci.yml)
 
-**Status:** implemented and tested (92 tests). The CLI scores real GitHub pull requests. The risk weights are hand-set and have **not** been validated against real incident data. The Docker image is built and smoke-tested in CI. Not deployed.
+**Status:** implemented and tested (92 tests). The CLI scores real GitHub pull requests. The risk weights are hand-set and have **not** been validated against real incident data. The Docker image is built and smoke-tested in CI. Live demo (free tier, so the first request after idle takes about a minute): https://releaseguard-rhhp.onrender.com/docs.
 
 **Explainable deployment-risk scoring.** Give ReleaseGuard the files changed
 in a release (or a GitHub PR), and it returns a 0–100 risk score where **every
@@ -146,7 +146,7 @@ docker run -p 8000:8000 releaseguard
 
 ## Deployment
 
-The Docker image listens on `$PORT` (default 8000) and has a `/health` healthcheck. `render.yaml` is a Render Blueprint for the free tier: in Render, choose **New → Blueprint** and select this repo. CI builds the image and smoke-tests `/health` and `/analyze` on every push. There's no public demo yet.
+The Docker image listens on `$PORT` (default 8000) and has a `/health` healthcheck. `render.yaml` is a Render Blueprint for the free tier: in Render, choose **New → Blueprint** and select this repo. CI builds the image and smoke-tests `/health` and `/analyze` on every push. The free-tier demo is at https://releaseguard-rhhp.onrender.com/docs.
 
 ## Known limitations
 
