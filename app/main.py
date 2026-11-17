@@ -2,10 +2,11 @@
 
 Run:  uvicorn app.main:app --reload      (docs at http://localhost:8000/docs)
 """
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from app.models import AnalyzeRequest, RiskReport
 from app.scoring import score_release
+from app.security import require_api_key
 
 app = FastAPI(
     title="ReleaseGuard",
@@ -20,7 +21,7 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-@app.post("/analyze", response_model=RiskReport)
+@app.post("/analyze", response_model=RiskReport, dependencies=[Depends(require_api_key)])
 def analyze(request: AnalyzeRequest) -> RiskReport:
     """Score one candidate release / pull request."""
     return score_release(request)
