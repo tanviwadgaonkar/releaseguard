@@ -31,6 +31,7 @@ log = logging.getLogger("releaseguard")
 REQUESTS = Counter("releaseguard_requests_total", "HTTP requests handled", ["method", "path", "status"])
 LATENCY = Histogram("releaseguard_request_duration_seconds", "HTTP request latency in seconds", ["method", "path"])
 ANALYSES = Counter("releaseguard_analyses_total", "Risk analyses produced, by level", ["level"])
+AGENT_DECISIONS = Counter("releaseguard_agent_decisions_total", "Release-gate agent decisions", ["decision"])
 
 DEFAULT_MAX_BODY_BYTES = 2_000_000
 _SAFE_REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
