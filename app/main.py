@@ -6,6 +6,7 @@ from fastapi import Depends, FastAPI
 
 from app.errors import install_error_handlers
 from app.models import AnalyzeRequest, RiskReport
+from app.observability import ANALYSES, install_observability
 from app.scoring import score_release
 from app.security import require_api_key
 
@@ -16,6 +17,7 @@ app = FastAPI(
                 "explained by auditable factors.",
 )
 install_error_handlers(app)
+install_observability(app)
 
 
 @app.get("/health")
@@ -26,4 +28,6 @@ def health() -> dict:
 @app.post("/analyze", response_model=RiskReport, dependencies=[Depends(require_api_key)])
 def analyze(request: AnalyzeRequest) -> RiskReport:
     """Score one candidate release / pull request."""
-    return score_release(request)
+    report = score_release(request)
+    ANALYSES.labels(level=report.level).inc()
+    return report
