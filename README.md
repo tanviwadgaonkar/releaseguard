@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/tanviwadgaonkar/releaseguard/actions/workflows/ci.yml/badge.svg)](https://github.com/tanviwadgaonkar/releaseguard/actions/workflows/ci.yml)
 
-**Status:** implemented and tested (46 tests). The CLI scores real GitHub pull requests. The risk weights are hand-set and have **not** been validated against real incident data. The Docker image is built and smoke-tested in CI. Not deployed.
+**Status:** implemented and tested (71 tests). The CLI scores real GitHub pull requests. The risk weights are hand-set and have **not** been validated against real incident data. The Docker image is built and smoke-tested in CI. Not deployed.
 
 **Explainable deployment-risk scoring.** Give ReleaseGuard the files changed
 in a release (or a GitHub PR), and it returns a 0–100 risk score where **every
@@ -72,6 +72,21 @@ python -m app.cli --markdown github pallets/flask 6168
 
 The CLI pages through GitHub's PR-files API (up to its 3,000-file limit), scores renamed files under both their old and new paths (counted once for the size factors), and exits with code 2 on HIGH so it can gate a pipeline. `GITHUB_TOKEN` is optional for public repos. This repo's own CI runs it on every pull request and writes the report to the job summary.
 
+## Security and operations
+
+- **API key (optional).** Set `RELEASEGUARD_API_KEY` and `POST /analyze` requires an `X-API-Key` header, compared in constant time. With the variable unset the service stays open, which is how it runs locally. `/health` and `/metrics` never need a key.
+- **Input limits.** Request bodies are capped at 2 MB (`RELEASEGUARD_MAX_BODY_BYTES`), a request can list at most 10,000 files and 100 critical paths, and line counts are bounded.
+- **One error format.** Every error returns `{"error": {"code", "message", "request_id", "details"}}`. Validation errors name the field but never echo the submitted value, and unexpected errors return a generic message while the traceback goes to the log.
+- **Request IDs and logs.** Each response carries an `X-Request-ID` header, and each request writes one JSON log line with method, path, status and duration.
+- **Metrics.** `GET /metrics` exposes `releaseguard_requests_total`, `releaseguard_request_duration_seconds` and `releaseguard_analyses_total` in the Prometheus format. The `path` label is the route template, so unknown URLs cannot create new series.
+
+```bash
+RELEASEGUARD_API_KEY=change-me uvicorn app.main:app
+curl -X POST localhost:8000/analyze -H "X-API-Key: change-me" \
+  -H "Content-Type: application/json" -d @examples/sample_pr_high_risk.json
+curl localhost:8000/metrics
+```
+
 ## Risk factors
 
 | Factor | Points | Triggered when |
@@ -100,7 +115,7 @@ Every factor depends on recognising what a path *is*, so `app/classify.py` is te
 
 ```bash
 pip install -r requirements-dev.txt
-python -m pytest -q          # 46 tests
+python -m pytest -q          # 71 tests
 
 docker build -t releaseguard .
 docker run -p 8000:8000 releaseguard
@@ -112,6 +127,7 @@ The Docker image listens on `$PORT` (default 8000) and has a `/health` healthche
 
 ## Known limitations
 
+- Auth is one shared API key: no per-user keys, key rotation or rate limiting. `/metrics` is unauthenticated, so in production keep it behind the platform's network controls.
 - The factor weights and thresholds are hand-chosen, not learned from incident data; the score ranks changes for review and isn't a probability of failure.
 - File classification is by path and extension; it doesn't read diffs, so a risky one-line config change scores like a harmless one.
 - "Friday deploy window" uses the timestamp as given, with no timezone or holiday calendar.
@@ -125,4 +141,4 @@ The Docker image listens on `$PORT` (default 8000) and has a `/health` healthche
 
 ## Stack
 
-Python · FastAPI · Pydantic v2 · pytest · Docker · GitHub Actions
+Python · FastAPI · Pydantic v2 · pytest · Prometheus metrics · Docker · GitHub Actions
